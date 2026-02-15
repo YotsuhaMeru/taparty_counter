@@ -1,0 +1,40 @@
+{
+  "users": [
+    {
+      "id": "78467547-ffe0-4322-84f0-27cd24288855",
+      "username": "",
+      "devices": []
+    },
+    {
+      "id": "04a9acf9-0a62-4c8a-aab4-2253a38e3d9b",
+      "username": "merutan1392",
+      "devices": [
+        {
+          "credentialID": "TDEtNVN0S2lVWlg3RWFNcFBXUFFROF9VWnp3",
+          "credentialPublicKey": "pQECAyYgASFYIDXqr9ZuE2XdW5oS0YXZiZw0xUWVSsznAaBpTnPqCtZ6IlggAp5AxC5Z3hG0ZDWcqGUQ_NloEMAILo-BBcm8sWsjCEg",
+          "counter": 0,
+          "transports": [
+            "internal",
+            "hybrid"
+          ]
+        }
+      ],
+      "currentChallenge": "u8D4kFWx_y_sPdFrXVo48ysrlHlF0pxTj7UauPa1T7Q"
+    },
+    {
+      "id": "50c5fe71-8fca-47c7-a2d9-f7460cce101a",
+      "username": "test",
+      "devices": [
+        {
+          "credentialID": "hEf06ysgSoCFS8tx_qu1QNkR6qs",
+          "credentialPublicKey": "pQECAyYgASFYIAV-PrphJjFvpK1jjMduUnGs2lm8h8x7ww5KD03Etze0IlggJxaHwBNCU89uraMuPp3H21aPa8hfX-qJqJbfv8bxEes",
+          "counter": 0,
+          "transports": [
+            "internal",
+            "hybrid"
+          ]
+        }
+      ]
+    }
+  ]
+}

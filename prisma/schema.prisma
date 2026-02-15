@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String                @id @default(uuid())
+  username         String                @unique
+  currentChallenge String?
+  devices          AuthenticatorDevice[]
+}
+
+model AuthenticatorDevice {
+  id                  String   @id @default(uuid())
+  credentialID        String   @unique
+  credentialPublicKey String
+  counter             Int
+  transports          String[]
+  user                User     @relation(fields: [userId], references: [id])
+  userId              String
+}
+
+model PendingUser {
+  id               String   @id @default(uuid())
+  username         String   @unique
+  currentChallenge String
+  createdAt        DateTime @default(now())
+}
