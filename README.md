@@ -1,38 +1,89 @@
-# TP mycounter scrape
+# TAParty QR Counter
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Next.js、Prisma、WebAuthn (Passkey) を使用したカウンターアプリケーション。
 
-## Getting Started
+## 前提条件
 
-First, run the development server:
+- Node.js (v20以上推奨)
+- PostgreSQL データベース
+
+## セットアップ手順
+
+### 1. リポジトリのクローンと依存関係のインストール
+
+```bash
+git clone <repository-url>
+cd sammyqr-counter
+npm install
+```
+
+### 2. 環境変数の設定
+
+ルートディレクトリに `.env` ファイルを作成し、環境に合わせて以下の変数を設定してください。
+
+```env
+# アプリケーションのドメイン設定 (ローカル開発の場合)
+NEXT_PUBLIC_RP_ID=localhost
+NEXT_PUBLIC_ORIGIN=http://localhost:3000
+
+# JWT署名用のシークレットキー (ランダムな文字列を設定してください)
+JWT_SECRET=complex_random_secret_string_here
+
+# データベース接続URL
+# フォーマット: postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public
+DATABASE_URL="postgresql://postgres:password@localhost:5432/sammyqrdb?schema=public"
+
+# ユーザー登録時の招待コード
+INVITATION_CODE="gommy2026"
+```
+
+**注意点:**
+
+- `NEXT_PUBLIC_RP_ID`: WebAuthn (Passkey) のRelying Party IDとして使用されます。ローカル開発時は `localhost` を設定します。
+- `NEXT_PUBLIC_ORIGIN`: アプリケーションのオリジンURLです。
+
+### 3. データベースのセットアップ
+
+Prismaを使用してデータベーススキーマを適用します。
+
+```bash
+# マイグレーションの実行
+npx prisma migrate dev --name init
+
+# クライアントの生成
+npx prisma generate
+```
+
+### 4. 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで [http://localhost:3000](http://localhost:3000) にアクセスして動作を確認してください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 利用可能なコマンド
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| コマンド            | 説明                                          |
+| ------------------- | --------------------------------------------- |
+| `npm run dev`       | 開発サーバーを起動します (ホットリロード有効) |
+| `npm run build`     | 本番環境用にアプリケーションをビルドします    |
+| `npm run start`     | ビルドされたアプリケーションを起動します      |
+| `npm run lint`      | ESLintを実行してコードの静的解析を行います    |
+| `npx prisma studio` | ブラウザベースのGUIでデータベースを管理します |
 
-## Learn More
+## 技術スタック
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [PostgreSQL](https://www.postgresql.org/)
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Authentication**: WebAuthn (Passkey) via [@simplewebauthn](https://simplewebauthn.dev/), JWT
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ディレクトリ構成
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `app/`: Next.js App Routerのページとコンポーネント
+- `lib/`: ユーティリティ関数、認証ロジック、DBクライアント
+- `prisma/`: Prismaスキーマ、マイグレーションファイル、シードスクリプト
+- `public/`: 静的ファイル
