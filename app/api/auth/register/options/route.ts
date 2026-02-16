@@ -6,7 +6,11 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { username } = body;
+  const { username, invitationCode } = body;
+
+  if (process.env.INVITATION_CODE && invitationCode !== process.env.INVITATION_CODE) {
+    return NextResponse.json({ error: 'Invalid invitation code' }, { status: 400 });
+  }
 
   const user = await db.getUserByUsername(username);
   

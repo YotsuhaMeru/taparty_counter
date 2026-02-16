@@ -1,15 +1,27 @@
 'use client';
 
 import { startRegistration, startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function AuthForm() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthFormContent />
+    </Suspense>
+  );
+}
+
+function AuthFormContent() {
   const [username, setUsername] = useState('');
+  const [invitationCode, setInvitationCode] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [message, setMessage] = useState('');
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [isSupported, setIsSupported] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
 
   const addLog = (msg: string) => {
     console.log(msg);
@@ -36,7 +48,7 @@ export default function AuthForm() {
       const resp = await fetch('/api/auth/register/options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username, invitationCode }),
       });
       
       if (!resp.ok) {
@@ -79,7 +91,11 @@ export default function AuthForm() {
       if (verificationJSON.verified) {
         setMessage('登録成功！リダイレクト中...');
         addLog('Registration verified. Redirecting...');
-        router.push('/home');
+        if (returnUrl) {
+          router.push(returnUrl);
+        } else {
+          router.push('/home');
+        }
       } else {
         setMessage(`登録失敗: ${JSON.stringify(verificationJSON)}`);
         addLog(`Verification failed: ${JSON.stringify(verificationJSON)}`);
@@ -132,7 +148,11 @@ export default function AuthForm() {
       if (verificationJSON.verified) {
         setMessage('ログイン成功！リダイレクト中...');
         addLog('Login verified. Redirecting...');
-        router.push('/home');
+        if (returnUrl) {
+          router.push(returnUrl);
+        } else {
+          router.push('/home');
+        }
       } else {
         setMessage(`ログイン失敗: ${JSON.stringify(verificationJSON)}`);
         addLog(`Verification failed: ${JSON.stringify(verificationJSON)}`);
@@ -148,7 +168,7 @@ export default function AuthForm() {
     <div className="flex flex-col items-center justify-center min-h-screen py-2">
       <main className="flex flex-col items-center justify-center w-full flex-1 px-20 text-center">
         <h1 className="text-4xl font-bold mb-8">
-          WebAuthn Login
+          {isRegistering ? 'Register' : 'Login'}
         </h1>
 
         <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -159,18 +179,40 @@ export default function AuthForm() {
             onChange={(e) => setUsername(e.target.value)}
             className="p-2 border rounded text-black dark:text-white dark:bg-gray-800 dark:border-gray-600"
           />
-          <div className="flex gap-2 justify-center">
+          {isRegistering && (
+            <input
+              type="text"
+              placeholder="Invitation Code"
+              value={invitationCode}
+              onChange={(e) => setInvitationCode(e.target.value)}
+              className="p-2 border rounded text-black dark:text-white dark:bg-gray-800 dark:border-gray-600"
+            />
+          )}
+          <div className="flex flex-col gap-2 justify-center">
+            {isRegistering ? (
+              <button
+                onClick={handleRegister}
+                className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex-1"
+              >
+                Register
+              </button>
+            ) : (
+              <button
+                onClick={handleLogin}
+                className="p-2 bg-green-500 text-white rounded hover:bg-green-600 flex-1"
+              >
+                Login
+              </button>
+            )}
             <button
-              onClick={handleRegister}
-              className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex-1"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setMessage('');
+                setDebugLog([]);
+              }}
+              className="text-sm text-blue-500 hover:underline mt-2"
             >
-              Register
-            </button>
-            <button
-              onClick={handleLogin}
-              className="p-2 bg-green-500 text-white rounded hover:bg-green-600 flex-1"
-            >
-              Login
+              {isRegistering ? 'Already have an account? Login' : "Don't have an account? Register"}
             </button>
           </div>
         </div>

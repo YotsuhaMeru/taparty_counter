@@ -20,8 +20,110 @@ export interface PendingUserModel {
   currentChallenge: string;
 }
 
+export interface CounterRecordModel {
+  id: string;
+  data: any;
+  createdAt: Date;
+  userId: string;
+}
+
+export interface VoiceCounterSessionModel {
+  id: string;
+  name: string;
+  counts: any;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+}
+
 // ユーザー操作
 export const db = {
+  // CounterRecord 操作
+  createCounterRecord: async (userId: string, data: any): Promise<CounterRecordModel> => {
+    const record = await prisma.counterRecord.create({
+      data: {
+        userId,
+        data,
+      },
+    });
+    return record;
+  },
+
+  getCounterRecords: async (userId: string, skip: number = 0, take: number = 10): Promise<{ records: CounterRecordModel[], total: number }> => {
+    const [records, total] = await prisma.$transaction([
+      prisma.counterRecord.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      prisma.counterRecord.count({
+        where: { userId },
+      }),
+    ]);
+    return { records, total };
+  },
+
+  deleteCounterRecord: async (userId: string, recordId: string): Promise<void> => {
+    // ユーザーIDを含めて検索することで、他人のレコードを削除できないようにする
+    // findFirstで存在確認してからdelete、あるいはdeleteManyでcountチェックなど方法はあるが、
+    // delete({ where: { id } }) だと userId を条件にできない（idがユニークキーのため）。
+    // そのため、deleteMany を使うか、事前に確認するか、あるいは prisma schema で複合キーにするか。
+    // ここでは deleteMany を使って安全に削除する。
+    const result = await prisma.counterRecord.deleteMany({
+      where: {
+        id: recordId,
+        userId: userId,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new Error('Record not found or not authorized to delete');
+    }
+  },
+
+  // VoiceCounterSession 操作
+  createVoiceCounterSession: async (userId: string, name: string): Promise<VoiceCounterSessionModel> => {
+    const session = await prisma.voiceCounterSession.create({
+      data: {
+        userId,
+        name,
+        counts: {},
+      },
+    });
+    return session;
+  },
+
+  getVoiceCounterSessions: async (userId: string): Promise<VoiceCounterSessionModel[]> => {
+    const sessions = await prisma.voiceCounterSession.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return sessions;
+  },
+
+  getVoiceCounterSession: async (userId: string, sessionId: string): Promise<VoiceCounterSessionModel | null> => {
+    const session = await prisma.voiceCounterSession.findFirst({
+      where: {
+        id: sessionId,
+        userId: userId,
+      },
+    });
+    return session;
+  },
+
+  updateVoiceCounterSession: async (userId: string, sessionId: string, counts: any): Promise<void> => {
+    await prisma.voiceCounterSession.updateMany({
+      where: {
+        id: sessionId,
+        userId: userId,
+      },
+      data: {
+        counts,
+      },
+    });
+  },
+
   // PendingUser 操作
   createPendingUser: async (username: string, currentChallenge: string, id?: string): Promise<PendingUserModel> => {
     // 既存のPendingUserがあれば削除（再登録の場合など）

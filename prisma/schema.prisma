@@ -12,6 +12,26 @@ model User {
   username         String                @unique
   currentChallenge String?
   devices          AuthenticatorDevice[]
+  records          CounterRecord[]
+  voiceCounterSessions VoiceCounterSession[]
+}
+
+model VoiceCounterSession {
+  id        String   @id @default(uuid())
+  name      String
+  counts    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+}
+
+model CounterRecord {
+  id        String   @id @default(uuid())
+  data      Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
 }
 
 model AuthenticatorDevice {
