@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    # Load environment variables from .env file (e.g. JWT_SECRET, INVITATION_CODE)
+    # Note: DATABASE_URL is overridden below to point to the db service
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/sammyqr_counter
+      # Ensure these match your local docker environment
+      - NEXT_PUBLIC_RP_ID=localhost
+      - NEXT_PUBLIC_ORIGIN=http://localhost:3000
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=sammyqr_counter
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db_data:
