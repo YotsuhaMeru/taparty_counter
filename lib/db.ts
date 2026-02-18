@@ -31,6 +31,7 @@ export interface VoiceCounterSessionModel {
   id: string;
   name: string;
   counts: any;
+  lastClientTimestamp: number;
   createdAt: Date;
   updatedAt: Date;
   userId: string;
@@ -89,6 +90,7 @@ export const db = {
         userId,
         name,
         counts: {},
+        lastClientTimestamp: 0,
       },
     });
     return session;
@@ -112,7 +114,21 @@ export const db = {
     return session;
   },
 
-  updateVoiceCounterSession: async (userId: string, sessionId: string, counts: any): Promise<void> => {
+  updateVoiceCounterSession: async (userId: string, sessionId: string, counts: any, lastClientTimestamp?: number): Promise<void> => {
+    // If lastClientTimestamp is provided, only update if the new timestamp is greater than the stored one
+    // This prevents out-of-order updates from overwriting newer data
+    if (lastClientTimestamp !== undefined) {
+      const currentSession = await prisma.voiceCounterSession.findFirst({
+        where: { id: sessionId, userId },
+        select: { lastClientTimestamp: true }
+      });
+
+      if (currentSession && currentSession.lastClientTimestamp > lastClientTimestamp) {
+        console.log(`Skipping update for session ${sessionId}: incoming timestamp ${lastClientTimestamp} is older than current ${currentSession.lastClientTimestamp}`);
+        return;
+      }
+    }
+
     await prisma.voiceCounterSession.updateMany({
       where: {
         id: sessionId,
@@ -120,6 +136,7 @@ export const db = {
       },
       data: {
         counts,
+        ...(lastClientTimestamp !== undefined ? { lastClientTimestamp } : {}),
       },
     });
   },

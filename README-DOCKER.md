@@ -34,13 +34,37 @@ This project can be run using Docker and Docker Compose.
 4.  **Access the Application**
     Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-## Stopping the Application
+## Stopping and Restarting
 
-To stop the containers, run:
+### Stop the application
+
+To stop the containers without removing data:
+
+```bash
+docker-compose stop
+```
+
+To stop and remove containers (data in volumes will persist):
 
 ```bash
 docker-compose down
 ```
+
+### Restart the application
+
+If you have stopped the containers with `docker-compose stop`:
+
+```bash
+docker-compose start
+```
+
+If you have removed the containers with `docker-compose down`, or to start fresh:
+
+```bash
+docker-compose up -d
+```
+
+_Note: You don't need `--build` unless you have modified the code or Dockerfile._
 
 ## Troubleshooting
 

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, use } from 'react';
 import { getVoiceCounterSession, updateVoiceCounterSession } from '../../actions';
-import { voiceCounterTemplates, VoiceCounterTemplate } from '@/lib/voice-counter-templates';
+import { voiceCounterTemplates } from '@/lib/voice-counter-templates';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { use } from 'react';
 
 interface VoiceCounterSession {
   id: string;
@@ -17,70 +16,162 @@ export default function VoiceCounterSessionPage({ params }: { params: Promise<{ 
   const { id } = use(params);
   const [session, setSession] = useState<VoiceCounterSession | null>(null);
   const [counts, setCounts] = useState<{ [key: string]: number }>({});
+  // Track the last version successfully synced to the server
+  const [serverSyncedCounts, setServerSyncedCounts] = useState<{ [key: string]: number } | null>(null);
+  
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default');
   const [isSubtractMode, setIsSubtractMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const router = useRouter();
   
-  // 保存用のタイマー
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Initial Load
   useEffect(() => {
     const loadSession = async () => {
       try {
+        const storageKey = `voice-counter-${id}`;
+        
+        const cachedDataStr = localStorage.getItem(storageKey);
+        
+        let cachedCounts: { [key: string]: number } | null = null;
+
+        if (cachedDataStr) {
+            try {
+                cachedCounts = JSON.parse(cachedDataStr);
+            } catch (e) {
+                console.error("Error parsing local storage", e);
+            }
+        }
+
+        // Fetch from Server
         const data = await getVoiceCounterSession(id);
         if (!data) {
           router.push('/voiceCounter');
           return;
         }
         setSession(data);
-        // countsが空の場合は初期化
-        const initialCounts = data.counts || {};
-        // テンプレートのボタンIDに基づいて初期値を設定（なければ0）
-        const template = voiceCounterTemplates.find(t => t.id === selectedTemplateId) || voiceCounterTemplates[0];
-        const mergedCounts = { ...initialCounts };
-        Object.keys(template.buttons).forEach(key => {
-            if (mergedCounts[key] === undefined) {
-                mergedCounts[key] = 0;
-            }
-        });
-        setCounts(mergedCounts);
+        
+        // Decision logic: Local vs Server
+        if (cachedCounts) {
+            // We have local cached data, prefer it (assumed unsynced)
+            setCounts(cachedCounts);
+            console.log("Using local cached data");
+        } else {
+            // No local cache, use server data
+            setCounts(data.counts || {});
+        }
+
+        // Initialize synced state to what is currently on the server
+        setServerSyncedCounts(data.counts || {});
+
       } catch (error) {
         console.error('Failed to load session:', error);
-        router.push('/voiceCounter');
+        // Fallback to local cache if server load fails
+        const storageKey = `voice-counter-${id}`;
+        const cachedDataStr = localStorage.getItem(storageKey);
+        if (cachedDataStr) {
+            try {
+                setCounts(JSON.parse(cachedDataStr));
+            } catch (e) {
+                console.error("Error parsing local storage fallback", e);
+            }
+        } else {
+             router.push('/voiceCounter');
+        }
       } finally {
         setIsLoading(false);
       }
     };
     loadSession();
-  }, [id, router, selectedTemplateId]);
+  }, [id, router]);
 
-  // カウントが変更されたら保存 (デバウンス)
+  // Ensure template buttons exist in counts
+  useEffect(() => {
+      if (isLoading) return;
+      
+      const template = voiceCounterTemplates.find(t => t.id === selectedTemplateId) || voiceCounterTemplates[0];
+      setCounts(prev => {
+          const newCounts = { ...prev };
+          let changed = false;
+          Object.keys(template.buttons).forEach(key => {
+              if (newCounts[key] === undefined) {
+                  newCounts[key] = 0;
+                  changed = true;
+              }
+          });
+          return changed ? newCounts : prev;
+      });
+  }, [selectedTemplateId, isLoading]);
+
+  // Manage Local Storage based on sync status
+  useEffect(() => {
+      if (isLoading) return;
+      
+      const storageKey = `voice-counter-${id}`;
+      // If we don't know server state, or counts differ from server state, we save.
+      // Only if we know server state AND counts match, we delete.
+      if (serverSyncedCounts && JSON.stringify(counts) === JSON.stringify(serverSyncedCounts)) {
+          localStorage.removeItem(storageKey);
+      } else {
+          localStorage.setItem(storageKey, JSON.stringify(counts));
+      }
+  }, [counts, serverSyncedCounts, id, isLoading]);
+
+  // Sync Logic with Retry and Timeout
   useEffect(() => {
     if (isLoading) return;
 
-    setSaveStatus('saving');
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    // Check if we need to sync
+    // We use JSON stringify for deep comparison of counts object
+    if (JSON.stringify(counts) === JSON.stringify(serverSyncedCounts)) {
+        if (saveStatus !== 'saved') setSaveStatus('saved');
+        return;
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await updateVoiceCounterSession(id, counts);
-        setSaveStatus('saved');
-      } catch (error) {
-        console.error('Failed to save counts:', error);
-        setSaveStatus('error');
-      }
-    }, 1000); // 1秒後に保存
+    const sync = async () => {
+        setSaveStatus('saving');
+        try {
+            const timestamp = Date.now();
+            
+            // Create a timeout promise (5 seconds)
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Sync timeout')), 5000)
+            );
+
+            // Execute update with timeout race
+            await Promise.race([
+                updateVoiceCounterSession(id, counts, timestamp),
+                timeoutPromise
+            ]);
+
+            // If successful, update the synced state
+            setServerSyncedCounts(counts);
+            
+            setSaveStatus('saved');
+        } catch (error) {
+            console.error('Failed to save counts:', error);
+            setSaveStatus('error');
+            
+            // Retry logic: Schedule next attempt in 10 seconds
+            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+            retryTimeoutRef.current = setTimeout(() => {
+                sync();
+            }, 10000);
+        }
+    };
+
+    // Debounce sync execution by 1 second
+    const debounceTimer = setTimeout(sync, 1000);
 
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+        clearTimeout(debounceTimer);
+        if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+        }
     };
-  }, [counts, id, isLoading]);
+  }, [counts, serverSyncedCounts, id, isLoading]);
 
   const handleTouch = (buttonId: string) => {
     setCounts(prev => {
@@ -117,7 +208,7 @@ export default function VoiceCounterSessionPage({ params }: { params: Promise<{ 
         <div className="text-xs text-gray-500 w-16 text-right">
           {saveStatus === 'saving' && 'Saving...'}
           {saveStatus === 'saved' && 'Saved'}
-          {saveStatus === 'error' && 'Error'}
+          {saveStatus === 'error' && 'Error (Retrying)'}
         </div>
       </div>
 

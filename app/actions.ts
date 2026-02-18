@@ -26,14 +26,14 @@ export async function createVoiceCounterSession(name: string) {
   }
 }
 
-export async function updateVoiceCounterSession(sessionId: string, counts: any) {
+export async function updateVoiceCounterSession(sessionId: string, counts: { [key: string]: number }, lastClientTimestamp?: number) {
   const userId = await verifySession();
   if (!userId) {
     throw new Error('Unauthorized');
   }
 
   try {
-    await db.updateVoiceCounterSession(userId, sessionId, counts);
+    await db.updateVoiceCounterSession(userId, sessionId, counts, lastClientTimestamp);
     revalidatePath(`/voiceCounter/${sessionId}`);
   } catch (error) {
     console.error('Failed to update voice counter session:', error);
