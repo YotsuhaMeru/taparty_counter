@@ -3,6 +3,8 @@ javascript: (function () {
   if (
     href.indexOf("https://sammyqr.jp/smartphone/AG/capture/index/symfony/") !==
       0 &&
+    href.indexOf("https://sammyqr.jp/smartphone/AG/total/index") !==
+      0 &&
     href.indexOf("https://sammyqr.jp/smartphone/AG/newPlay/index") !== 0
   ) {
     alert("このページでは使用できません。");
