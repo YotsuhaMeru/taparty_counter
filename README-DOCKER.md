@@ -26,7 +26,7 @@ This project can be run using Docker and Docker Compose.
     After the containers are running, you need to apply the database migrations. Run:
 
     ```bash
-    docker-compose exec app npx prisma migrate deploy
+    docker-compose exec app prisma migrate deploy
     ```
 
     _Note: This command executes the migrations inside the running `app` container against the `db` container._
